@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EMPRÉSTIMOS</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: black;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: yellow;
+      text-align: center;
+      margin: 30px 0 20px 0;
+      font-size: 36px;
+      text-transform: uppercase;
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .login-box, .form-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+    }
+    input, button {
+      padding: 15px;
+      font-size: 18px;
+      border-radius: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input {
+      border: 2px solid yellow;
+      background: white;
+      color: black;
+    }
+    input[type="date"] {
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    button {
+      background-color: yellow;
+      color: black;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: gold;
+    }
+    .section {
+      margin-top: 30px;
+    }
+    .hidden {
+      display: none;
+    }
+    .emprestimo-item {
+      margin: 15px 0;
+      font-size: 18px;
+    }
+    .bold {
+      font-weight: bold;
+    }
+    .edit-container {
+      margin-top: 10px;
+      border: 1px solid yellow;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .botoes-acoes {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBKrXdeDz7ckUyZqdua63QfoHfFgqt_QgY",
+      authDomain: "emprestimos-5c280.firebaseapp.com",
+      databaseURL: "https://emprestimos-5c280-default-rtdb.firebaseio.com",
+      projectId: "emprestimos-5c280",
+      storageBucket: "emprestimos-5c280.appspot.com",
+      messagingSenderId: "584603248744",
+      appId: "1:584603248744:web:4a13f9a938efe01abbf3dd",
+      measurementId: "G-3QL8DLTK11"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+  </script>
+</head>
+<body>
+  <h1>EMPRÉSTIMOS</h1>
+  <div class="container">
+    <div id="loginContainer">
+      <div class="login-box">
+        <input type="text" id="usuario" placeholder="Usuário" />
+        <input type="password" id="senha" placeholder="Senha" />
+        <button onclick="fazerLogin()">Entrar</button>
+        <div id="mensagemErro" style="color:red;font-weight:bold;"></div>
+      </div>
+    </div>
+    <div id="emprestimosContainer" class="hidden">
+      <div class="form-container">
+        <input type="text" id="titulo" placeholder="Nome do Empréstimo">
+        <input type="date" id="dataHora">
+        <input type="text" id="descricao" placeholder="Valor R$">
+        <button onclick="adicionarEmprestimo()">Adicionar</button>
+        <button onclick="logout()">Sair</button>
+      </div>
+      <div class="section">
+        <button onclick="toggleSecao('feitos')">Ver Empréstimos Feitos</button>
+        <div id="emprestimosFeitos" class="hidden"></div>
+      </div>
+      <div class="section">
+        <button onclick="toggleSecao('fazer')">Ver Empréstimos a Fazer</button>
+        <div id="emprestimosAFazer" class="hidden"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let mostrarFeitos = false;
+    let mostrarAFazer = false;
+    let lista = [];
+    function fazerLogin() {
+      const usuario = document.getElementById("usuario").value.trim();
+      const senha = document.getElementById("senha").value;
+      if ((usuario === "Diego" && senha === "2525") || (usuario === "Trevoso" && senha === "8687")) {
+        localStorage.setItem("logado", "sim");
+        mostrarEmprestimos();
+      } else {
+        document.getElementById("mensagemErro").innerText = "Usuário ou senha incorretos!";
+      }
+    }
+    function logout() {
+      localStorage.removeItem("logado");
+      location.reload();
+    }
+    function mostrarEmprestimos() {
+      document.getElementById("loginContainer").classList.add("hidden");
+      document.getElementById("emprestimosContainer").classList.remove("hidden");
+    }
+    function toggleSecao(secao) {
+      if (secao === 'feitos') {
+        mostrarFeitos = !mostrarFeitos;
+        document.getElementById('emprestimosFeitos').className = mostrarFeitos ? '' : 'hidden';
+      } else {
+        mostrarAFazer = !mostrarAFazer;
+        document.getElementById('emprestimosAFazer').className = mostrarAFazer ? '' : 'hidden';
+      }
+      carregarEmprestimos(lista);
+    }
+    function formatarValor(valor) {
+      const num = parseFloat(valor.replace(',', '.'));
+      if (isNaN(num)) return valor;
+      return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    function formatarDataSimples(data) {
+      let d = new Date(data);
+      return d.toLocaleDateString('pt-BR');
+    }
+    function adicionarEmprestimo() {
+      let titulo = document.getElementById('titulo').value.trim();
+      let dataHora = document.getElementById('dataHora').value;
+      let descricao = document.getElementById('descricao').value.trim();
+      if (!titulo || !dataHora || !descricao) {
+        alert('Preencha todos os campos!');
+        return;
+      }
+      lista.push({ titulo, dataHora, descricao, feito: false });
+      db.ref("emprestimos").set(lista);
+      document.getElementById('titulo').value = '';
+      document.getElementById('dataHora').value = '';
+      document.getElementById('descricao').value = '';
+    }
+    function editarEmprestimo(index, campo, valor) {
+      lista[index][campo] = valor;
+      db.ref("emprestimos").set(lista);
+    }
+    function removerEmprestimo(index) {
+      lista.splice(index, 1);
+      db.ref("emprestimos").set(lista);
+    }
+    function marcarComoConcluido(index) {
+      lista[index].feito = true;
+      db.ref("emprestimos").set(lista);
+    }
+    function carregarEmprestimos(dados) {
+      const agora = new Date();
+      const divFeitos = document.getElementById('emprestimosFeitos');
+      const divAFazer = document.getElementById('emprestimosAFazer');
+      divFeitos.innerHTML = '';
+      divAFazer.innerHTML = '';
+      dados.forEach((emp, index) => {
+        let dataFormatada = formatarDataSimples(emp.dataHora);
+        let container = document.createElement('div');
+        container.className = 'emprestimo-item';
+        let conteudo = `<span class="bold">${emp.titulo}</span> — ${dataFormatada} — ${formatarValor(emp.descricao)}`;
+        if (!emp.feito && mostrarAFazer) {
+          conteudo += ` <button onclick="marcarComoConcluido(${index})">Concluído</button>
+                        <button onclick="removerEmprestimo(${index})">Remover</button>`;
+        } else if (emp.feito && mostrarFeitos) {
+          conteudo += `<div class="botoes-acoes">
+                         <button onclick="removerEmprestimo(${index})">Apagar</button>
+                       </div>`;
+        }
+        container.innerHTML = conteudo;
+        let divEdicao = document.createElement('div');
+        divEdicao.className = 'edit-container';
+        divEdicao.innerHTML = `
+          <input type="text" value="${emp.titulo}" onchange="editarEmprestimo(${index}, 'titulo', this.value)">
+          <input type="date" value="${emp.dataHora.split('T')[0]}" onchange="editarEmprestimo(${index}, 'dataHora', this.value)">
+          <input type="text" value="${emp.descricao}" onchange="editarEmprestimo(${index}, 'descricao', this.value)">
+        `;
+        container.appendChild(divEdicao);
+        if (!emp.feito && mostrarAFazer) divAFazer.appendChild(container);
+        else if (emp.feito && mostrarFeitos) divFeitos.appendChild(container);
+      });
+    }
+    window.onload = function () {
+      if (localStorage.getItem("logado") === "sim") {
+        mostrarEmprestimos();
+      }
+      db.ref("emprestimos").on("value", (snapshot) => {
+        lista = snapshot.val() || [];
+        carregarEmprestimos(lista);
+      });
+    };
+  </script>
+</body>
+</html>
